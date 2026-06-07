@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Real-Time AI-Powered Weapon Detection System using TensorFlow.js and computer vision for live threat monitoring."/>
+  <title>WeaponShield AI — Real-Time Weapon Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- Animated background grid -->
+  <div class="bg-grid"></div>
+  <div class="bg-particles" id="bgParticles"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="navbar-left">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <polygon points="14,2 26,8 26,20 14,26 2,20 2,8" fill="none" stroke="#00f5ff" stroke-width="1.5"/>
+            <polygon points="14,6 22,10 22,18 14,22 6,18 6,10" fill="none" stroke="#ff3366" stroke-width="1"/>
+            <circle cx="14" cy="14" r="3" fill="#00f5ff"/>
+          </svg>
+        </div>
+        <span class="logo-text">Weapon<span class="logo-accent">Shield</span> <span class="logo-badge">AI</span></span>
+      </div>
+    </div>
+    <div class="navbar-center">
+      <div class="system-status" id="systemStatus">
+        <span class="status-dot active" id="statusDot"></span>
+        <span class="status-text" id="statusText">SYSTEM INITIALIZING</span>
+      </div>
+    </div>
+    <div class="navbar-right">
+      <div class="nav-stat">
+        <span class="nav-stat-label">SESSION</span>
+        <span class="nav-stat-value" id="sessionTime">00:00:00</span>
+      </div>
+      <div class="nav-stat">
+        <span class="nav-stat-label">FPS</span>
+        <span class="nav-stat-value" id="fpsDisplay">--</span>
+      </div>
+      <div class="nav-stat">
+        <span class="nav-stat-label">ALERTS</span>
+        <span class="nav-stat-value alert-count" id="totalAlerts">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="main-layout">
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar sidebar-left">
+
+      <div class="sidebar-section">
+        <h3 class="section-title">DETECTION CONFIG</h3>
+        <div class="config-group">
+          <label class="config-label">Confidence Threshold</label>
+          <div class="slider-wrap">
+            <input type="range" min="10" max="95" value="50" class="slider" id="confidenceSlider"/>
+            <span class="slider-val" id="confidenceVal">50%</span>
+          </div>
+        </div>
+        <div class="config-group">
+          <label class="config-label">Detection Sensitivity</label>
+          <div class="toggle-group">
+            <button class="toggle-btn" id="sensLow" onclick="setSensitivity('low')">LOW</button>
+            <button class="toggle-btn active" id="sensMed" onclick="setSensitivity('medium')">MED</button>
+            <button class="toggle-btn" id="sensHigh" onclick="setSensitivity('high')">HIGH</button>
+          </div>
+        </div>
+        <div class="config-group">
+          <label class="config-label">Alert Mode</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="alertVisual" onclick="setAlertMode('visual')">VISUAL</button>
+            <button class="toggle-btn" id="alertAudio" onclick="setAlertMode('audio')">AUDIO</button>
+            <button class="toggle-btn" id="alertBoth" onclick="setAlertMode('both')">BOTH</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">TARGET CLASSES</h3>
+        <div class="target-class-list" id="targetClassList">
+          <label class="class-toggle">
+            <input type="checkbox" checked id="chk-gun"> <span class="class-dot gun"></span> Firearm / Gun
+          </label>
+          <label class="class-toggle">
+            <input type="checkbox" checked id="chk-knife"> <span class="class-dot knife"></span> Knife / Blade
+          </label>
+          <label class="class-toggle">
+            <input type="checkbox" checked id="chk-rifle"> <span class="class-dot rifle"></span> Rifle / Long Gun
+          </label>
+          <label class="class-toggle">
+            <input type="checkbox" id="chk-bat"> <span class="class-dot bat"></span> Blunt Weapon
+          </label>
+          <label class="class-toggle">
+            <input type="checkbox" id="chk-explosive"> <span class="class-dot explosive"></span> Explosive
+          </label>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">MODEL INFO</h3>
+        <div class="model-info-grid">
+          <div class="model-info-item">
+            <span class="mi-label">ENGINE</span>
+            <span class="mi-val">TF.js COCO-SSD</span>
+          </div>
+          <div class="model-info-item">
+            <span class="mi-label">BACKEND</span>
+            <span class="mi-val" id="tfBackend">Loading...</span>
+          </div>
+          <div class="model-info-item">
+            <span class="mi-label">MODEL</span>
+            <span class="mi-val" id="modelStatus">Loading...</span>
+          </div>
+          <div class="model-info-item">
+            <span class="mi-label">LATENCY</span>
+            <span class="mi-val" id="inferenceTime">-- ms</span>
+          </div>
+        </div>
+        <div class="model-load-bar">
+          <div class="model-load-fill" id="modelLoadFill"></div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Center Feed -->
+    <section class="center-panel">
+
+      <!-- Feed header -->
+      <div class="feed-header">
+        <div class="feed-title">
+          <span class="cam-indicator"></span>
+          LIVE FEED — CAM 01
+        </div>
+        <div class="feed-controls">
+          <button class="ctrl-btn" id="btnSnapshot" onclick="takeSnapshot()" title="Screenshot">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h3l2-2h6l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m8 3a5 5 0 0 0-5 5a5 5 0 0 0 5 5a5 5 0 0 0 5-5a5 5 0 0 0-5-5m0 2a3 3 0 0 1 3 3a3 3 0 0 1-3 3a3 3 0 0 1-3-3a3 3 0 0 1 3-3z"/></svg>
+          </button>
+          <button class="ctrl-btn" id="btnRecord" onclick="toggleRecord()" title="Record">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+          </button>
+          <button class="ctrl-btn danger" id="btnStop" onclick="stopCamera()" title="Stop Camera">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Video feed + canvas overlay -->
+      <div class="video-container" id="videoContainer">
+
+        <!-- Start screen -->
+        <div class="start-screen" id="startScreen">
+          <div class="start-content">
+            <div class="start-icon">
+              <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                <circle cx="40" cy="40" r="38" stroke="#00f5ff" stroke-width="1.5" stroke-dasharray="4 4"/>
+                <circle cx="40" cy="40" r="28" stroke="#ff3366" stroke-width="1" stroke-dasharray="2 6"/>
+                <circle cx="40" cy="40" r="8" fill="#00f5ff" opacity="0.8"/>
+                <line x1="40" y1="2" x2="40" y2="20" stroke="#00f5ff" stroke-width="1.5"/>
+                <line x1="40" y1="60" x2="40" y2="78" stroke="#00f5ff" stroke-width="1.5"/>
+                <line x1="2" y1="40" x2="20" y2="40" stroke="#00f5ff" stroke-width="1.5"/>
+                <line x1="60" y1="40" x2="78" y2="40" stroke="#00f5ff" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <h2 class="start-title">Initialize Detection System</h2>
+            <p class="start-desc">Grant camera access to begin real-time AI-powered weapon detection using computer vision.</p>
+            <button class="start-btn" id="startBtn" onclick="startDetection()">
+              <span class="start-btn-icon">▶</span> ACTIVATE SYSTEM
+            </button>
+            <p class="start-note">⚡ Powered by TensorFlow.js · Browser-based · No data uploaded</p>
+          </div>
+        </div>
+
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="overlayCanvas"></canvas>
+
+        <!-- Threat overlay (flashes on detection) -->
+        <div class="threat-overlay" id="threatOverlay"></div>
+
+        <!-- Corner scan lines -->
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <!-- Scan line animation -->
+        <div class="scan-line" id="scanLine"></div>
+
+        <!-- Detection stats on feed -->
+        <div class="feed-overlay-stats">
+          <div class="fos-item"><span class="fos-l">OBJECTS</span><span class="fos-v" id="objCount">0</span></div>
+          <div class="fos-item"><span class="fos-l">THREATS</span><span class="fos-v threat" id="threatCount">0</span></div>
+          <div class="fos-item"><span class="fos-l">CONF</span><span class="fos-v" id="maxConf">0%</span></div>
+        </div>
+
+        <!-- Threat level badge -->
+        <div class="threat-level-badge" id="threatBadge">
+          <div class="tlb-label">THREAT</div>
+          <div class="tlb-value" id="threatLevel">NONE</div>
+        </div>
+
+      </div>
+
+      <!-- Threat level bar -->
+      <div class="threat-meter">
+        <div class="tm-labels">
+          <span>SAFE</span><span>LOW</span><span>MEDIUM</span><span>HIGH</span><span>CRITICAL</span>
+        </div>
+        <div class="tm-bar">
+          <div class="tm-fill" id="tmFill"></div>
+          <div class="tm-cursor" id="tmCursor"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Sidebar -->
+    <aside class="sidebar sidebar-right">
+
+      <div class="sidebar-section">
+        <h3 class="section-title">LIVE DETECTIONS</h3>
+        <div class="detections-list" id="detectionsList">
+          <div class="no-detections">
+            <div class="nd-icon">◉</div>
+            <div class="nd-text">Awaiting feed…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">ALERT LOG</h3>
+        <div class="alert-log" id="alertLog">
+          <div class="no-detections">
+            <div class="nd-icon">📋</div>
+            <div class="nd-text">No alerts yet</div>
+          </div>
+        </div>
+        <button class="clear-btn" onclick="clearAlertLog()">CLEAR LOG</button>
+      </div>
+
+      <div class="sidebar-section">
+        <h3 class="section-title">STATISTICS</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="totalDetections">0</div>
+            <div class="stat-lbl">Total Detections</div>
+          </div>
+          <div class="stat-card danger">
+            <div class="stat-val" id="weaponDetections">0</div>
+            <div class="stat-lbl">Weapon Alerts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="framesProcessed">0</div>
+            <div class="stat-lbl">Frames Processed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="avgFps">0</div>
+            <div class="stat-lbl">Avg FPS</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- Snapshot Modal -->
+  <div class="modal-overlay" id="snapshotModal" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Detection Snapshot</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <canvas id="snapshotCanvas"></canvas>
+      <div class="modal-footer">
+        <button class="modal-btn" onclick="downloadSnapshot()">⬇ DOWNLOAD</button>
+        <button class="modal-btn secondary" onclick="closeModal()">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert popup -->
+  <div class="alert-popup" id="alertPopup">
+    <div class="ap-icon">⚠</div>
+    <div class="ap-content">
+      <div class="ap-title">WEAPON DETECTED</div>
+      <div class="ap-detail" id="apDetail">Firearm detected with 87% confidence</div>
+    </div>
+  </div>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
